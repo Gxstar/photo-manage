@@ -32,51 +32,39 @@
       <div class="px-4 mt-6">
         <div class="flex items-center justify-between mb-2">
           <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">本地目录</h3>
-          <button class="text-primary hover:text-primary-dark">
+          <button class="text-primary hover:text-primary-dark" @click="addLocalDirectory">
             <i class="fas fa-folder-plus"></i>
           </button>
         </div>
         <div class="space-y-1">
-          <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
+          <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left" @click="toggleDirectory('myPictures')">
             <div class="icon-wrapper">
               <i class="fas fa-folder text-gray-500"></i>
             </div>
             <span>我的图片</span>
-            <i class="fas fa-chevron-down ml-auto text-xs text-gray-400"></i>
+            <i :class="{ 'fas fa-chevron-down': directories.myPictures.expanded, 'fas fa-chevron-right': !directories.myPictures.expanded }" class="ml-auto text-xs text-gray-400"></i>
           </button>
-          <div class="pl-8 space-y-1">
-            <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
+          <div v-if="directories.myPictures.expanded" class="pl-8 space-y-1">
+            <button v-for="subdir in directories.myPictures.subdirectories" :key="subdir.name" class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
               <div class="icon-wrapper">
                 <i class="fas fa-folder text-gray-500"></i>
               </div>
-              <span>2023</span>
-            </button>
-            <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
-              <div class="icon-wrapper">
-                <i class="fas fa-folder text-gray-500"></i>
-              </div>
-              <span>2022</span>
+              <span>{{ subdir.name }}</span>
             </button>
           </div>
-          <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
+          <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left" @click="toggleDirectory('cameraImport')">
             <div class="icon-wrapper">
               <i class="fas fa-folder text-gray-500"></i>
             </div>
             <span>相机导入</span>
-            <i class="fas fa-chevron-down ml-auto text-xs text-gray-400"></i>
+            <i :class="{ 'fas fa-chevron-down': directories.cameraImport.expanded, 'fas fa-chevron-right': !directories.cameraImport.expanded }" class="ml-auto text-xs text-gray-400"></i>
           </button>
-          <div class="pl-8 space-y-1">
-            <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
+          <div v-if="directories.cameraImport.expanded" class="pl-8 space-y-1">
+            <button v-for="subdir in directories.cameraImport.subdirectories" :key="subdir.name" class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
               <div class="icon-wrapper">
                 <i class="fas fa-folder text-gray-500"></i>
               </div>
-              <span>佳能 EOS R5</span>
-            </button>
-            <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
-              <div class="icon-wrapper">
-                <i class="fas fa-folder text-gray-500"></i>
-              </div>
-              <span>iPhone 14 Pro</span>
+              <span>{{ subdir.name }}</span>
             </button>
           </div>
         </div>
@@ -148,6 +136,52 @@
     </div>
   </div>
 </template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+
+// 目录结构数据
+const directories = ref({
+  myPictures: {
+    expanded: true,
+    subdirectories: [
+      { name: '2023' },
+      { name: '2022' }
+    ]
+  },
+  cameraImport: {
+    expanded: true,
+    subdirectories: [
+      { name: '佳能 EOS R5' },
+      { name: 'iPhone 14 Pro' }
+    ]
+  }
+})
+
+// 从后端加载目录结构
+onMounted(() => {
+  // 这里应该从后端数据库加载目录结构
+  // 为了演示，我们使用硬编码的数据
+  console.log('加载目录结构')
+})
+
+// 切换目录展开状态
+function toggleDirectory(directoryName) {
+  directories.value[directoryName].expanded = !directories.value[directoryName].expanded
+}
+
+// 添加本地目录
+function addLocalDirectory() {
+  // 调用Electron的API选择目录
+  window.electronAPI.selectDirectory().then(path => {
+    if (path) {
+      console.log('选择的目录:', path)
+      // 这里应该将目录路径保存到后端数据库
+      // 然后更新前端目录结构
+    }
+  })
+}
+</script>
 
 <style scoped>
 .sidebar {

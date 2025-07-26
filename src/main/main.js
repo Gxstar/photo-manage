@@ -1,5 +1,5 @@
 // src/main/index.js
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, dialog } = require('electron');
 const path = require('path');
 const url = require('url');
 
@@ -30,11 +30,32 @@ function createWindow() {
   }
 }
 
+const { ipcMain } = require('electron');
+
 app.whenReady().then(() => {
   createWindow();
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+
+  // 处理选择目录请求
+  ipcMain.on('select-directory', (event) => {
+    dialog.showOpenDialog({
+      properties: ['openDirectory'],
+      filters: [
+        { name: '所有文件夹', extensions: ['*'] }
+      ]
+    }).then((result) => {
+      if (!result.canceled && result.filePaths.length > 0) {
+        event.reply('directory-selected', result.filePaths[0]);
+      } else {
+        event.reply('directory-selected', null);
+      }
+    }).catch((err) => {
+      console.error(err);
+      event.reply('directory-selected', null);
+    });
   });
 });
 
