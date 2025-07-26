@@ -1,14 +1,36 @@
-<script setup>
-
-</script>
-
 <template>
-  <div class="container mx-auto p-4 bg-gray-100 rounded-lg shadow-md">
-    <h1 class="text-2xl font-bold text-blue-600">照片管理工具</h1>
-    <p class="text-gray-700 mt-2">使用Tailwind CSS样式化你的界面</p>
+  <div class="app-container flex h-screen bg-gray-50">
+    <!-- 侧边栏 -->
+    <Sidebar />
+    <!-- 照片网格 -->
+    <PhotoGrid />
+    <!-- 信息面板 -->
+    <InfoPanel />
   </div>
 </template>
 
-<style scoped>
+<script>
+import Sidebar from './components/Sidebar.vue'
+import PhotoGrid from './components/PhotoGrid.vue'
+import InfoPanel from './components/InfoPanel.vue'
 
+export default {
+  name: 'App',
+  components: {
+    Sidebar,
+    PhotoGrid,
+    InfoPanel
+  }
+}
+</script>
+
+<style>
+.app-container {
+  width: 100%;
+  overflow: hidden;
+}
+/* 全局样式 */
+.rounded-button {
+  border-radius: 6px;
+}
 </style>
