@@ -10,6 +10,10 @@ export default defineConfig({
   build: {
     outDir: '../../dist/renderer', // 构建输出目录，相对于项目根目录
     emptyOutDir: true, // 构建前清空输出目录
+    // 为Electron环境添加特殊处理
+    rollupOptions: {
+      external: ['electron'],
+    }
   },
   resolve: {
     alias: {

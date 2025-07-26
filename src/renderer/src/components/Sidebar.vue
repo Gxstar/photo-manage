@@ -37,30 +37,15 @@
           </button>
         </div>
         <div class="space-y-1">
-          <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left" @click="toggleDirectory('myPictures')">
+          <button v-for="(dir, dirName) in directories" :key="dirName" class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left" @click="toggleDirectory(dirName)" v-if="dir">
             <div class="icon-wrapper">
               <i class="fas fa-folder text-gray-500"></i>
             </div>
-            <span>我的图片</span>
-            <i :class="{ 'fas fa-chevron-down': directories.myPictures.expanded, 'fas fa-chevron-right': !directories.myPictures.expanded }" class="ml-auto text-xs text-gray-400"></i>
+            <span>{{ dirName }}</span>
+            <i :class="{ 'fas fa-chevron-down': dir.expanded, 'fas fa-chevron-right': !dir.expanded }" class="ml-auto text-xs text-gray-400"></i>
           </button>
-          <div v-if="directories.myPictures.expanded" class="pl-8 space-y-1">
-            <button v-for="subdir in directories.myPictures.subdirectories" :key="subdir.name" class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
-              <div class="icon-wrapper">
-                <i class="fas fa-folder text-gray-500"></i>
-              </div>
-              <span>{{ subdir.name }}</span>
-            </button>
-          </div>
-          <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left" @click="toggleDirectory('cameraImport')">
-            <div class="icon-wrapper">
-              <i class="fas fa-folder text-gray-500"></i>
-            </div>
-            <span>相机导入</span>
-            <i :class="{ 'fas fa-chevron-down': directories.cameraImport.expanded, 'fas fa-chevron-right': !directories.cameraImport.expanded }" class="ml-auto text-xs text-gray-400"></i>
-          </button>
-          <div v-if="directories.cameraImport.expanded" class="pl-8 space-y-1">
-            <button v-for="subdir in directories.cameraImport.subdirectories" :key="subdir.name" class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
+          <div v-for="(dir, dirName) in directories" :key="`subdir-${dirName}`" v-if="dir && dir.expanded" class="pl-8 space-y-1">
+            <button v-for="subdir in dir.subdirectories" :key="subdir.name" class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
               <div class="icon-wrapper">
                 <i class="fas fa-folder text-gray-500"></i>
               </div>
@@ -141,28 +126,45 @@
 import { ref, onMounted } from 'vue'
 
 // 目录结构数据
-const directories = ref({
-  myPictures: {
-    expanded: true,
-    subdirectories: [
-      { name: '2023' },
-      { name: '2022' }
-    ]
-  },
-  cameraImport: {
-    expanded: true,
-    subdirectories: [
-      { name: '佳能 EOS R5' },
-      { name: 'iPhone 14 Pro' }
-    ]
-  }
-})
+const directories = ref({})
 
 // 从后端加载目录结构
-onMounted(() => {
-  // 这里应该从后端数据库加载目录结构
-  // 为了演示，我们使用硬编码的数据
-  console.log('加载目录结构')
+onMounted(async () => {
+  // 检查electronAPI是否存在
+  console.log('Checking for electronAPI...');
+  console.log('Window object keys:', Object.keys(window));
+  console.log('electronAPI:', window.electronAPI);
+  
+  if (!window.electronAPI) {
+    console.error('electronAPI is not available. Make sure the preload script is properly configured.');
+    console.error('Current window object:', window);
+    return;
+  }
+  
+  // 检查getSavedDirectories方法是否存在
+  if (!window.electronAPI.getSavedDirectories) {
+    console.error('getSavedDirectories method is not available on electronAPI');
+    return;
+  }
+  
+  // 从主进程获取保存的目录
+  try {
+    const savedDirs = await window.electronAPI.getSavedDirectories();
+    if (savedDirs && Array.isArray(savedDirs)) {
+      // 转换为所需格式
+      directories.value = {};
+      savedDirs.forEach(dirPath => {
+        const dirName = window.path.basename(dirPath);
+        directories.value[dirName] = {
+          path: dirPath,
+          expanded: false,
+          subdirectories: []
+        };
+      });
+    }
+  } catch (error) {
+    console.error('Failed to load saved directories:', error);
+  }
 })
 
 // 切换目录展开状态
@@ -176,8 +178,14 @@ function addLocalDirectory() {
   window.electronAPI.selectDirectory().then(path => {
     if (path) {
       console.log('选择的目录:', path)
-      // 这里应该将目录路径保存到后端数据库
-      // 然后更新前端目录结构
+      // 提取目录名称
+      const dirName = path.split('\\').pop()
+      // 添加到目录结构
+      directories.value[dirName] = {
+        path: path,
+        expanded: true,
+        subdirectories: []
+      }
     }
   })
 }

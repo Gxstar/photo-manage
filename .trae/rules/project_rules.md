@@ -1,1 +1,2 @@
 1.渲染进程使用vue3实现，要求使用组合式api样式使用tailwindcss生成。
+2.本地开发环境为windows，所以要在终端运行命令的话注意符合powershell的语法。

@@ -2,11 +2,17 @@
 const { app, BrowserWindow, dialog } = require('electron');
 const path = require('path');
 const url = require('url');
+const StoreModule = require('electron-store');
+const Store = StoreModule.default || StoreModule;
+
+// 创建存储实例
+const store = new Store();
 
 // 确定是否是开发模式
 const isDev = process.env.NODE_ENV === 'development';
 
 function createWindow() {
+  console.log('Creating window with preload script:', path.join(__dirname, '../preload/index.js'));
   const mainWindow = new BrowserWindow({
     width: 1000,
     height: 700,
@@ -48,7 +54,14 @@ app.whenReady().then(() => {
       ]
     }).then((result) => {
       if (!result.canceled && result.filePaths.length > 0) {
-        event.reply('directory-selected', result.filePaths[0]);
+        const selectedPath = result.filePaths[0];
+        // 保存到存储中
+        let directories = store.get('directories', []);
+        if (!directories.includes(selectedPath)) {
+          directories.push(selectedPath);
+          store.set('directories', directories);
+        }
+        event.reply('directory-selected', selectedPath);
       } else {
         event.reply('directory-selected', null);
       }
@@ -56,6 +69,12 @@ app.whenReady().then(() => {
       console.error(err);
       event.reply('directory-selected', null);
     });
+  });
+
+  // 发送保存的目录到渲染进程
+  ipcMain.on('get-saved-directories', (event) => {
+    const directories = store.get('directories', []);
+    event.reply('saved-directories', directories);
   });
 });
 
