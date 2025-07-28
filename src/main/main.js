@@ -32,10 +32,14 @@ function createWindow() {
 }
 
 const { ipcMain } = require('electron');
-const { handleSelectDirectory, handleGetSavedDirectories } = require('./handlers/directory');
+const { handleSelectDirectory, handleGetSavedDirectories, handleGetImagesInDirectory } = require('./handlers/directory');
+const { initDatabase } = require('./handlers/database');
 
 app.whenReady().then(() => {
   createWindow();
+  
+  // 初始化数据库
+  initDatabase();
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -46,6 +50,9 @@ app.whenReady().then(() => {
 
   // 发送保存的目录到渲染进程
   ipcMain.on('get-saved-directories', handleGetSavedDirectories);
+  
+  // 处理获取目录中图片的请求
+  ipcMain.on('get-images-in-directory', handleGetImagesInDirectory);
 });
 
 app.on('window-all-closed', function () {

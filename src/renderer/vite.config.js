@@ -22,5 +22,6 @@ export default defineConfig({
   },
   server: {
     port: 5173, // Vite 开发服务器端口
+    host: '127.0.0.1', // 指定host以避免IPv6权限问题
   }
 });

@@ -12,6 +12,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
       });
     });
   },
+  // 更新图片信息
+  updateImageInfo: (imageData) => {
+    return ipcRenderer.invoke('update-image-info', imageData);
+  },
   // 获取保存的目录
   getSavedDirectories: () => {
     return new Promise((resolve) => {
@@ -27,6 +31,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.send('select-directory');
       ipcRenderer.once('directory-selected', (event, path) => {
         resolve(path);
+      });
+    });
+  },
+  // 获取目录中的图片
+  getImagesInDirectory: (directoryPath) => {
+    return new Promise((resolve) => {
+      ipcRenderer.send('get-images-in-directory', directoryPath);
+      ipcRenderer.once('images-in-directory', (event, data) => {
+        resolve(data);
       });
     });
   }

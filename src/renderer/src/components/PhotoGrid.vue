@@ -31,60 +31,31 @@
     </div>
     <!-- 照片网格 -->
     <div class="flex-1 overflow-y-auto p-6">
-      <div class="photo-grid grid gap-4">
-        <div class="photo-thumbnail bg-white rounded-button overflow-hidden border border-gray-200 hover:border-primary cursor-pointer relative group">
-          <img src="https://ai-public.mastergo.com/ai/img_res/e3190f9763ffce64822cb32d37277258.jpg"
-               class="w-full h-full object-cover" alt="照片">
-          <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200"></div>
-          <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
-            <button class="bg-white p-1 rounded-full shadow-sm">
-              <i class="fas fa-star text-gray-400 hover:text-yellow-400"></i>
-            </button>
-          </div>
-        </div>
-        <div class="photo-thumbnail bg-white rounded-button overflow-hidden border border-gray-200 hover:border-primary cursor-pointer relative group">
-          <img src="https://ai-public.mastergo.com/ai/img_res/ca0281e8c672d8a21479dc481fa7a22f.jpg"
-               class="w-full h-full object-cover" alt="照片">
-          <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200"></div>
-          <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
-            <button class="bg-white p-1 rounded-full shadow-sm">
-              <i class="fas fa-star text-gray-400 hover:text-yellow-400"></i>
-            </button>
-          </div>
-        </div>
-        <div class="photo-thumbnail bg-white rounded-button overflow-hidden border border-gray-200 hover:border-primary cursor-pointer relative group">
-          <img src="https://ai-public.mastergo.com/ai/img_res/bc8152173a3b4c196e43f4437c19c380.jpg"
-               class="w-full h-full object-cover" alt="照片">
-          <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200"></div>
-          <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
-            <button class="bg-white p-1 rounded-full shadow-sm">
-              <i class="fas fa-star text-gray-400 hover:text-yellow-400"></i>
-            </button>
-          </div>
-        </div>
-        <div class="photo-thumbnail bg-white rounded-button overflow-hidden border border-gray-200 hover:border-primary cursor-pointer relative group">
-          <img src="https://ai-public.mastergo.com/ai/img_res/6708234212a52f45b15b0ee7fc6cef49.jpg"
-               class="w-full h-full object-cover" alt="照片">
-          <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200"></div>
-          <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
-            <button class="bg-white p-1 rounded-full shadow-sm">
-              <i class="fas fa-star text-gray-400 hover:text-yellow-400"></i>
-            </button>
-          </div>
-        </div>
-        <div class="photo-thumbnail bg-white rounded-button overflow-hidden border border-gray-200 hover:border-primary cursor-pointer relative group">
-          <img src="https://ai-public.mastergo.com/ai/img_res/e00afc85e24ab4a2d63652cee4c3910a.jpg"
-               class="w-full h-full object-cover" alt="照片">
-          <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200"></div>
-          <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
-            <button class="bg-white p-1 rounded-full shadow-sm">
-              <i class="fas fa-star text-gray-400 hover:text-yellow-400"></i>
-            </button>
-          </div>
-        </div>
-        <div class="photo-thumbnail bg-white rounded-button overflow-hidden border border-gray-200 hover:border-primary cursor-pointer relative group">
-          <img src="https://ai-public.mastergo.com/ai/img_res/7e44e1e4a813123bed84277d8ecf3111.jpg"
-               class="w-full h-full object-cover" alt="照片">
+      <div v-if="loading" class="text-center py-4">
+        <p>正在加载图片...</p>
+      </div>
+      <div v-else-if="error" class="text-center py-4 text-red-500">
+        <p>{{ error }}</p>
+      </div>
+      <div v-else class="photo-grid grid gap-4">
+        <div 
+          v-for="image in images" 
+          :key="image.path" 
+          class="photo-thumbnail bg-white rounded-button overflow-hidden border border-gray-200 hover:border-primary cursor-pointer relative group"
+          @click="selectImage(image)"
+        >
+          <img 
+            v-if="image.thumbnail" 
+            :src="`data:image/jpeg;base64,${image.thumbnail}`" 
+            class="w-full h-full object-cover" 
+            :alt="image.name"
+          >
+          <img 
+            v-else
+            :src="`file://${image.path}`" 
+            class="w-full h-full object-cover" 
+            :alt="image.name"
+          >
           <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200"></div>
           <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
             <button class="bg-white p-1 rounded-full shadow-sm">
@@ -97,9 +68,116 @@
   </div>
 </template>
 
+<script>
+export default {
+  name: 'PhotoGrid',
+  props: {
+    directoryPath: {
+      type: String,
+      default: ''
+    },
+    hasInfoPanel: {
+      type: Boolean,
+      default: false
+    }
+  },
+  data() {
+    return {
+      images: [],
+      loading: false,
+      error: null
+    };
+  },
+  watch: {
+    directoryPath: {
+      handler(newPath) {
+        this.loadImages(newPath);
+      },
+      immediate: true
+    }
+  },
+  methods: {
+    async loadImages(directoryPath) {
+      // 如果没有选择目录，清空图片列表
+      if (!directoryPath) {
+        this.images = [];
+        this.loading = false;
+        this.error = null;
+        return;
+      }
+      
+      // 开始加载
+      this.loading = true;
+      this.error = null;
+      
+      try {
+        // 检查electronAPI是否存在
+        if (!window.electronAPI || !window.electronAPI.getImagesInDirectory) {
+          throw new Error('electronAPI或getImagesInDirectory方法不可用');
+        }
+        
+        // 从主进程获取图片
+        const result = await window.electronAPI.getImagesInDirectory(directoryPath);
+        
+        // 检查是否有错误
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        
+        // 更新图片列表，并处理缩略图数据
+        this.images = (result.images || []).map(image => ({
+          ...image,
+          thumbnail: image.thumbnail ? image.thumbnail.toString('base64') : null
+        }));
+      } catch (err) {
+        console.error('加载图片时出错:', err);
+        this.error = err.message || '加载图片时出错';
+        this.images = [];
+      } finally {
+        this.loading = false;
+      }
+    },
+    async selectImage(image) {
+      // 获取EXIF信息
+      let exifData = null;
+      try {
+        if (window.electronAPI && window.electronAPI.getExifData) {
+          const result = await window.electronAPI.getExifData(image.path);
+          if (!result.error) {
+            exifData = result.exif;
+          }
+        }
+      } catch (err) {
+        console.error('获取EXIF信息时出错:', err);
+      }
+      
+      // 发射事件，将选中的图片信息和EXIF信息传递给父组件
+      this.$emit('select-image', { ...image, exif: exifData });
+    },
+    updateInfoPanelWidth() {
+      // 根据hasInfoPanel属性设置CSS变量
+      const contentElement = this.$el;
+      if (contentElement) {
+        if (this.hasInfoPanel) {
+          contentElement.style.setProperty('--info-panel-width', '320px');
+        } else {
+          contentElement.style.setProperty('--info-panel-width', '0px');
+        }
+      }
+    }
+  },
+  mounted() {
+    this.updateInfoPanelWidth();
+  },
+  updated() {
+    this.updateInfoPanelWidth();
+  }
+}
+</script>
+
 <style scoped>
 .content {
-  width: calc(100% - 280px - 320px);
+  width: calc(100% - 280px - var(--info-panel-width, 0px));
 }
 .photo-grid {
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
