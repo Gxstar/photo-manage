@@ -30,36 +30,59 @@
         </button>
       </div>
       <div class="px-4 mt-6">
-        <div class="flex items-center justify-between mb-2">
-          <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">本地目录</h3>
-          <button class="text-primary hover:text-primary-dark" @click="addLocalDirectory">
-            <i class="fas fa-folder-plus"></i>
-          </button>
-        </div>
-        <div class="space-y-1">
-          <button v-for="(dir, dirName) in directories" :key="dirName" class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left" @click="toggleDirectory(dirName)" v-if="dir">
-            <div class="icon-wrapper">
-              <i class="fas fa-folder text-gray-500"></i>
-            </div>
-            <span>{{ dirName }}</span>
-            <i :class="{ 'fas fa-chevron-down': dir.expanded, 'fas fa-chevron-right': !dir.expanded }" class="ml-auto text-xs text-gray-400"></i>
-          </button>
-          <div v-for="(dir, dirName) in directories" :key="`subdir-${dirName}`" v-if="dir && dir.expanded" class="pl-8 space-y-1">
-            <button v-for="subdir in dir.subdirectories" :key="subdir.name" class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
-              <div class="icon-wrapper">
-                <i class="fas fa-folder text-gray-500"></i>
-              </div>
-              <span>{{ subdir.name }}</span>
+        <!-- 本地目录 -->
+        <div class="mb-6">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold text-gray-700">本地目录</h2>
+            <button @click="addLocalDirectory" class="text-gray-500 hover:text-gray-700">
+              <PlusIcon class="w-4 h-4" />
             </button>
           </div>
-        </div>
-      </div>
-      <div class="px-4 mt-6">
-        <div class="flex items-center justify-between mb-2">
-          <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">我的相册</h3>
-          <button class="text-primary hover:text-primary-dark">
-            <i class="fas fa-plus"></i>
-          </button>
+          
+          <!-- 显示目录列表 -->
+          <div v-if="Object.keys(directories).length > 0">
+            <div v-for="(dir, dirPath) in directories" :key="dirPath">
+              <button
+                @click="selectDirectory(dir.path)"
+                @contextmenu="showDirectoryContextMenu($event, dir.path)"
+                class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 transition-colors group"
+                :class="{ 'bg-blue-50': selectedDirectory === dir.path }"
+              >
+                <div class="flex items-center">
+                  <FolderIcon class="w-4 h-4 mr-2 text-blue-500" />
+                  <span class="text-sm">{{ dir.name }}</span>
+                </div>
+                <button 
+                  @click.stop="toggleDirectoryExpansion(dir)"
+                  class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600"
+                  v-if="dir.subdirectories && dir.subdirectories.length > 0"
+                >
+                  <ChevronDownIcon 
+                    class="w-4 h-4 transition-transform" 
+                    :class="{ 'transform rotate-180': dir.expanded }" 
+                  />
+                </button>
+              </button>
+              
+              <!-- 展开的子目录 (递归显示) -->
+              <div v-show="dir.expanded">
+                <div class="ml-4 border-l-2 border-gray-200 pl-2">
+                  <RecursiveSubDirectory 
+                    :directories="dir.subdirectories" 
+                    :selectedDirectory="selectedDirectory" 
+                    @select-directory="selectDirectory"
+                    @show-context-menu="showDirectoryContextMenu"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 如果没有目录，显示提示信息 -->
+          <div v-else class="text-center py-4 text-gray-500 text-sm">
+            <p>暂无目录</p>
+            <p class="mt-1">点击上方 + 按钮添加目录</p>
+          </div>
         </div>
         <div class="space-y-1">
           <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
@@ -114,7 +137,6 @@
     <div class="p-4 border-t border-gray-200">
       <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
         <div class="icon-wrapper">
-          <i class="fas fa-cog text-gray-500"></i>
         </div>
         <span>设置</span>
       </button>
@@ -122,74 +144,259 @@
   </div>
 </template>
 
-<script setup>
-import { ref, onMounted } from 'vue'
+<script>
+import { ref, onMounted, defineProps, defineEmits, defineComponent, h } from 'vue'
+import { FolderIcon, ChevronDownIcon, PlusIcon, PhotoIcon, SparklesIcon, CogIcon } from '@heroicons/vue/24/outline'
 
-// 目录结构数据
-const directories = ref({})
-
-// 从后端加载目录结构
-onMounted(async () => {
-  // 检查electronAPI是否存在
-  console.log('Checking for electronAPI...');
-  console.log('Window object keys:', Object.keys(window));
-  console.log('electronAPI:', window.electronAPI);
-  
-  if (!window.electronAPI) {
-    console.error('electronAPI is not available. Make sure the preload script is properly configured.');
-    console.error('Current window object:', window);
-    return;
-  }
-  
-  // 检查getSavedDirectories方法是否存在
-  if (!window.electronAPI.getSavedDirectories) {
-    console.error('getSavedDirectories method is not available on electronAPI');
-    return;
-  }
-  
-  // 从主进程获取保存的目录
-  try {
-    const savedDirs = await window.electronAPI.getSavedDirectories();
-    if (savedDirs && Array.isArray(savedDirs)) {
-      // 转换为所需格式
-      directories.value = {};
-      savedDirs.forEach(dirPath => {
-        const dirName = window.path.basename(dirPath);
-        directories.value[dirName] = {
-          path: dirPath,
-          expanded: false,
-          subdirectories: []
-        };
-      });
+// 定义递归组件
+const RecursiveSubDirectory = defineComponent({
+  name: 'RecursiveSubDirectory',
+  props: {
+    directories: {
+      type: Array,
+      default: () => []
+    },
+    selectedDirectory: {
+      type: String,
+      default: ''
     }
-  } catch (error) {
-    console.error('Failed to load saved directories:', error);
+  },
+  emits: ['select-directory', 'show-context-menu'],
+  setup(props, { emit }) {
+    const toggleDirectoryExpansion = (dir) => {
+      dir.expanded = !dir.expanded;
+    };
+    
+    return {
+      toggleDirectoryExpansion,
+      selectDirectory: (path) => emit('select-directory', path),
+      showContextMenu: (event, path) => emit('show-context-menu', { event, path, type: 'directory' })
+    };
+  },
+  render() {
+    if (!this.directories || this.directories.length === 0) {
+      return null;
+    }
+    
+    return h('div', { class: 'recursive-subdirectory' }, [
+      this.directories.map(dir => [
+        h('button', {
+          key: dir.path,
+          onClick: () => this.selectDirectory(dir.path),
+          onContextmenu: (event) => this.showContextMenu(event, dir.path),
+          class: [
+            'w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 transition-colors group',
+            { 'bg-blue-50': this.selectedDirectory === dir.path }
+          ]
+        }, [
+          h('div', { class: 'flex items-center' }, [
+            h(FolderIcon, { class: 'w-4 h-4 mr-2 text-blue-500' }),
+            h('span', { class: 'text-sm' }, dir.name)
+          ]),
+          dir.subdirectories && dir.subdirectories.length > 0 ?
+            h('button', {
+              onClick: (event) => {
+                event.stopPropagation();
+                this.toggleDirectoryExpansion(dir);
+              },
+              class: 'opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600'
+            }, [
+              h(ChevronDownIcon, {
+                class: [
+                  'w-4 h-4 transition-transform',
+                  { 'transform rotate-180': dir.expanded }
+                ]
+              })
+            ]) :
+            null
+        ]),
+        dir.expanded && dir.subdirectories && dir.subdirectories.length > 0 ?
+          h('div', { 
+            key: 'sub-' + dir.path,
+            class: 'ml-4 border-l-2 border-gray-200 pl-2'
+          }, [
+            h(RecursiveSubDirectory, {
+              directories: dir.subdirectories,
+              selectedDirectory: this.selectedDirectory,
+              'onSelect-directory': this.selectDirectory,
+              'onShow-context-menu': this.showContextMenu
+            })
+          ]) :
+          null
+      ])
+    ]);
   }
-})
+});
 
-// 切换目录展开状态
-function toggleDirectory(directoryName) {
-  directories.value[directoryName].expanded = !directories.value[directoryName].expanded
-}
-
-// 添加本地目录
-function addLocalDirectory() {
-  // 调用Electron的API选择目录
-  window.electronAPI.selectDirectory().then(path => {
-    if (path) {
-      console.log('选择的目录:', path)
-      // 提取目录名称
-      const dirName = path.split('\\').pop()
-      // 添加到目录结构
-      directories.value[dirName] = {
-        path: path,
-        expanded: true,
-        subdirectories: []
+export default defineComponent({
+  name: 'Sidebar',
+  components: {
+    RecursiveSubDirectory,
+    FolderIcon,
+    ChevronDownIcon,
+    PlusIcon
+  },
+  props: {
+    selectedDirectory: {
+      type: String,
+      default: ''
+    }
+  },
+  setup(props, { emit }) {
+    const directories = ref({})
+    
+    // 选择目录
+    const selectDirectory = (path) => {
+      emit('update:selectedDirectory', path)
+    }
+    
+    // 显示目录右键菜单
+    const showDirectoryContextMenu = (event, path) => {
+      event.preventDefault()
+      emit('showContextMenu', { event, path, type: 'directory' })
+    }
+    
+    // 切换目录展开状态
+    const toggleDirectoryExpansion = (dir) => {
+      if (dir) {
+        dir.expanded = !dir.expanded
       }
     }
-  })
-}
+    
+    // 添加本地目录
+    const addLocalDirectory = async () => {
+      const isElectron = !!window.electronAPI;
+      
+      if (!isElectron) {
+        // 在开发环境中添加模拟目录
+        const mockDir = {
+          '开发目录': {
+            path: 'C:\\mock\\development\\directory',
+            expanded: false,
+            subdirectories: []
+          }
+        };
+        directories.value = { ...directories.value, ...mockDir };
+        return;
+      }
+      
+      // 在Electron环境中添加实际目录
+      if (window.electronAPI && window.electronAPI.addDirectory) {
+        try {
+          const result = await window.electronAPI.addDirectory();
+          if (result) {
+            // 重新加载目录
+            loadDirectories();
+          }
+        } catch (error) {
+          console.error('Failed to add directory:', error);
+        }
+      } else {
+        console.error('electronAPI or addDirectory method is not available');
+      }
+    }
+    
+    // 转换目录结构数据格式
+    const convertDirectoryStructure = (dirStructure) => {
+      if (!dirStructure) return null;
+      
+      return {
+        name: dirStructure.name,
+        path: dirStructure.path,
+        expanded: false,
+        subdirectories: dirStructure.subdirectories ? dirStructure.subdirectories.map(convertDirectoryStructure).filter(Boolean) : []
+      };
+    };
+    
+    // 从后端加载目录结构
+    const loadDirectories = async () => {
+      // 检查electronAPI是否存在
+      if (!window.electronAPI) {
+        // 在开发环境中添加模拟目录
+        const mockDirs = {
+          'C:\\mock\\development\\directory': {
+            name: '开发目录',
+            path: 'C:\\mock\\development\\directory',
+            expanded: false,
+            subdirectories: [
+              {
+                name: '子目录1',
+                path: 'C:\\mock\\development\\directory\\子目录1',
+                expanded: false,
+                subdirectories: []
+              },
+              {
+                name: '子目录2',
+                path: 'C:\\mock\\development\\directory\\子目录2',
+                expanded: false,
+                subdirectories: [
+                  {
+                    name: '子子目录',
+                    path: 'C:\\mock\\development\\directory\\子目录2\\子子目录',
+                    expanded: false,
+                    subdirectories: []
+                  }
+                ]
+              }
+            ]
+          }
+        };
+        directories.value = mockDirs;
+        console.log('使用开发环境模拟数据:', mockDirs);
+        return;
+      }
+      
+      // 检查getSavedDirectories方法是否存在
+      if (!window.electronAPI.getSavedDirectories) {
+        console.error('getSavedDirectories method is not available on electronAPI');
+        return;
+      }
+      
+      // 从主进程获取保存的目录
+      try {
+        const savedDirs = await window.electronAPI.getSavedDirectories();
+        console.log('从主进程获取的目录数据:', savedDirs);
+        
+        if (savedDirs && Array.isArray(savedDirs)) {
+          // 转换为所需格式
+          const convertedDirs = savedDirs.map(convertDirectoryStructure).filter(Boolean);
+          console.log('转换后的目录数据:', convertedDirs);
+          
+          // 将数组转换为对象格式，以路径为键
+          const newDirectories = {};
+          convertedDirs.forEach(dir => {
+            newDirectories[dir.path] = dir;
+          });
+          console.log('最终目录数据:', newDirectories);
+          directories.value = newDirectories;
+        } else {
+          // 如果没有保存的目录，设置一个默认值
+          console.log('没有获取到目录数据');
+          directories.value = {};
+        }
+      } catch (error) {
+        console.error('Failed to load saved directories:', error);
+        // 出错时也设置一个默认值
+        directories.value = {};
+      }
+    }
+    
+    // 从后端加载目录结构
+    onMounted(async () => {
+      await loadDirectories();
+    })
+    
+    return {
+      directories,
+      selectDirectory,
+      showDirectoryContextMenu,
+      toggleDirectoryExpansion,
+      addLocalDirectory
+    }
+  }
+})
 </script>
+
 
 <style scoped>
 .sidebar {

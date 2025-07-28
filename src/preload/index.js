@@ -1,9 +1,6 @@
 // src/preload/index.js
 const { contextBridge, ipcRenderer } = require('electron');
 
-// 添加调试信息
-console.log('Preload script loaded');
-
 // 暴露一个安全的 API 给渲染进程
 contextBridge.exposeInMainWorld('electronAPI', {
   // 选择目录
@@ -23,8 +20,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
         resolve(directories);
       });
     });
+  },
+  // 添加目录
+  addDirectory: () => {
+    return new Promise((resolve) => {
+      ipcRenderer.send('select-directory');
+      ipcRenderer.once('directory-selected', (event, path) => {
+        resolve(path);
+      });
+    });
   }
 });
-
-// 添加调试信息
-console.log('electronAPI exposed:', window.electronAPI);

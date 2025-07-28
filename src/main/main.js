@@ -1,12 +1,7 @@
 // src/main/index.js
-const { app, BrowserWindow, dialog } = require('electron');
+const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const url = require('url');
-const StoreModule = require('electron-store');
-const Store = StoreModule.default || StoreModule;
-
-// 创建存储实例
-const store = new Store();
 
 // 确定是否是开发模式
 const isDev = process.env.NODE_ENV === 'development';
@@ -37,6 +32,7 @@ function createWindow() {
 }
 
 const { ipcMain } = require('electron');
+const { handleSelectDirectory, handleGetSavedDirectories } = require('./handlers/directory');
 
 app.whenReady().then(() => {
   createWindow();
@@ -46,36 +42,10 @@ app.whenReady().then(() => {
   });
 
   // 处理选择目录请求
-  ipcMain.on('select-directory', (event) => {
-    dialog.showOpenDialog({
-      properties: ['openDirectory'],
-      filters: [
-        { name: '所有文件夹', extensions: ['*'] }
-      ]
-    }).then((result) => {
-      if (!result.canceled && result.filePaths.length > 0) {
-        const selectedPath = result.filePaths[0];
-        // 保存到存储中
-        let directories = store.get('directories', []);
-        if (!directories.includes(selectedPath)) {
-          directories.push(selectedPath);
-          store.set('directories', directories);
-        }
-        event.reply('directory-selected', selectedPath);
-      } else {
-        event.reply('directory-selected', null);
-      }
-    }).catch((err) => {
-      console.error(err);
-      event.reply('directory-selected', null);
-    });
-  });
+  ipcMain.on('select-directory', handleSelectDirectory);
 
   // 发送保存的目录到渲染进程
-  ipcMain.on('get-saved-directories', (event) => {
-    const directories = store.get('directories', []);
-    event.reply('saved-directories', directories);
-  });
+  ipcMain.on('get-saved-directories', handleGetSavedDirectories);
 });
 
 app.on('window-all-closed', function () {
