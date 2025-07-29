@@ -1,11 +1,11 @@
 <template>
   <div class="app-container flex h-screen bg-gray-50">
     <!-- 侧边栏 -->
-    <Sidebar :selectedDirectory="selectedDirectory" @update:selectedDirectory="updateSelectedDirectory" />
+    <Sidebar :selectedDirectory="selectedDirectory" @update:selectedDirectory="updateSelectedDirectory" @showAllPhotos="handleShowAllPhotos" />
     <!-- 照片网格 -->
-    <PhotoGrid :directoryPath="selectedDirectory" @select-image="updateSelectedImage" :has-info-panel="!!selectedImage" />
+    <PhotoGrid :directoryPath="selectedDirectory" :showAllPhotos="showAllPhotos" @select-image="updateSelectedImage" :has-info-panel="!!selectedImage" />
     <!-- 信息面板 -->
-    <InfoPanel v-if="selectedImage" :image="selectedImage" @update-image="updateImageInfo" />
+    <InfoPanel v-if="selectedImage" :image="selectedImage" @update-image="updateImageInfo" @close="selectedImage = null" class="z-40" />
   </div>
 </template>
 
@@ -24,12 +24,15 @@ export default {
   data() {
     return {
       selectedDirectory: '',
-      selectedImage: null
+      selectedImage: null,
+      showAllPhotos: true
     };
   },
   methods: {
     updateSelectedDirectory(path) {
       this.selectedDirectory = path;
+      // 当选择特定目录时，关闭全部照片模式
+      this.showAllPhotos = false;
     },
     updateSelectedImage(image) {
       this.selectedImage = image;
@@ -50,6 +53,12 @@ export default {
       } catch (error) {
         console.error('更新图片信息时出错:', error);
       }
+    },
+    handleShowAllPhotos() {
+      // 设置显示全部照片模式
+      this.showAllPhotos = true;
+      // 清空selectedDirectory，避免与全部照片模式冲突
+      this.selectedDirectory = '';
     }
   }
 }

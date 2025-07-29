@@ -54,4 +54,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   // 获取目录图片数量
   // 已移除此功能
+
+  // 获取所有图片
+  getAllImages: () => {
+    return ipcRenderer.invoke('get-all-images');
+  },
+  // 获取图片EXIF信息
+  getExifData: (imagePath) => {
+    return ipcRenderer.invoke('get-exif-data', imagePath);
+  }
 });

@@ -2,30 +2,51 @@
   <div class="content flex flex-col h-full">
     <!-- 顶部工具栏 -->
     <div class="bg-white border-b border-gray-200 p-3 flex items-center justify-between">
-      <div class="flex items-center space-x-2">
-        <button class="px-3 py-1.5 rounded-button hover:bg-gray-100 flex items-center space-x-2">
+      <div class="flex items-center space-x-2 flex-nowrap">
+        <button class="px-3 py-1.5 rounded-button hover:bg-gray-100 flex items-center space-x-2 whitespace-nowrap min-w-max">
           <i class="fas fa-th-large text-gray-500"></i>
           <span>网格视图</span>
         </button>
-        <button class="px-3 py-1.5 rounded-button hover:bg-gray-100 flex items-center space-x-2">
+        <button class="px-3 py-1.5 rounded-button hover:bg-gray-100 flex items-center space-x-2 whitespace-nowrap min-w-max">
           <i class="fas fa-list text-gray-500"></i>
           <span>列表视图</span>
         </button>
       </div>
       <div class="flex items-center space-x-4">
-        <div class="relative">
-          <input type="text" placeholder="搜索照片..." class="pl-9 pr-4 py-1.5 border border-gray-300 rounded-button focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm w-64">
-          <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-        </div>
         <div class="flex items-center space-x-2">
-          <button class="px-3 py-1.5 rounded-button hover:bg-gray-100 flex items-center space-x-2">
+          <button class="px-3 py-1.5 rounded-button hover:bg-gray-100 flex items-center space-x-2 whitespace-nowrap min-w-max">
             <i class="fas fa-sort-amount-down text-gray-500"></i>
             <span>按日期</span>
           </button>
-          <button class="px-3 py-1.5 rounded-button hover:bg-gray-100 flex items-center space-x-2">
+          <button class="px-3 py-1.5 rounded-button hover:bg-gray-100 flex items-center space-x-2 whitespace-nowrap min-w-max">
             <i class="fas fa-filter text-gray-500"></i>
             <span>筛选</span>
           </button>
+        </div>
+        <!-- 缩略图大小控制滑块 -->
+        <div class="relative">
+          <button 
+            @click="showThumbnailSlider = !showThumbnailSlider"
+            class="px-3 py-1.5 rounded-button hover:bg-gray-100 flex items-center space-x-2 whitespace-nowrap min-w-max"
+          >
+            <i class="fas fa-expand text-gray-500"></i>
+            <span>缩略图大小</span>
+          </button>
+          <div 
+            v-if="showThumbnailSlider" 
+            class="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-button shadow-lg p-3 z-30"
+          >
+            <input 
+              type="range" 
+              min="100" 
+              max="180" 
+              v-model="thumbnailMinWidth" 
+              @input="handleThumbnailSizeChange"
+              class="w-24"
+              orient="vertical"
+            >
+            <div class="text-center text-sm text-gray-600 mt-1">{{ thumbnailMinWidth }}px</div>
+          </div>
         </div>
       </div>
     </div>
@@ -39,23 +60,29 @@
       </div>
       <div v-else class="photo-grid grid gap-4">
         <div 
-          v-for="image in displayedImages" 
+          v-for="(image, index) in displayedImages" 
           :key="image.path" 
           class="photo-thumbnail bg-white rounded-button overflow-hidden border border-gray-200 hover:border-primary cursor-pointer relative group"
           @click="selectImage(image)"
+          :data-index="index"
         >
           <img 
-            v-if="image.thumbnail" 
+            v-if="image.thumbnail && image.loaded" 
             :src="`data:image/jpeg;base64,${image.thumbnail}`" 
             class="w-full h-full object-cover" 
             :alt="image.name"
+            loading="lazy"
           >
           <img 
-            v-else
+            v-else-if="!image.thumbnail && image.loaded"
             :src="`file://${image.path}`" 
             class="w-full h-full object-cover" 
             :alt="image.name"
+            loading="lazy"
           >
+          <div v-else class="w-full h-full bg-gray-200 flex items-center justify-center">
+            <div class="text-gray-500 text-sm">加载中...</div>
+          </div>
           <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200"></div>
           <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
             <button class="bg-white p-1 rounded-full shadow-sm">
@@ -82,6 +109,10 @@ export default {
       type: String,
       default: ''
     },
+    showAllPhotos: {
+      type: Boolean,
+      default: false
+    },
     hasInfoPanel: {
       type: Boolean,
       default: false
@@ -94,26 +125,52 @@ export default {
       loading: false,
       error: null,
       currentPage: 0,
-      pageSize: 50  // 每页显示50张图片
+      pageSize: 50,  // 每页显示50张图片
+      observer: null,
+      thumbnailMinWidth: 150,  // 缩略图最小宽度，默认150px
+      showThumbnailSlider: false  // 控制缩略图大小滑块的显示/隐藏
     };
   },
   watch: {
     directoryPath: {
       handler(newPath) {
-        this.loadImages(newPath);
+        // 只有在不显示全部照片时才根据目录路径变化加载图片
+        if (!this.showAllPhotos) {
+          this.loadImages(newPath);
+        }
+      },
+      immediate: true
+    },
+    showAllPhotos: {
+      handler(newShowAllPhotos) {
+        // 当showAllPhotos属性变化时，重新加载图片
+        if (newShowAllPhotos) {
+          this.loadImages('');
+        }
+      },
+      immediate: true
+    },
+    thumbnailMinWidth: {
+      handler(newWidth) {
+        // 更新CSS变量
+        if (this.$el) {
+          this.$el.style.setProperty('--thumbnail-min-width', `${newWidth}px`);
+        }
       },
       immediate: true
     }
   },
   methods: {
     async loadImages(directoryPath) {
-      // 如果没有选择目录，清空图片列表
-      if (!directoryPath) {
-        this.images = [];
-        this.displayedImages = [];
+      // 清空现有图片列表
+      this.images = [];
+      this.displayedImages = [];
+      this.currentPage = 0;
+      
+      // 如果不是显示全部照片且没有选择目录，重置状态并返回
+      if (!this.showAllPhotos && !directoryPath) {
         this.loading = false;
         this.error = null;
-        this.currentPage = 0;
         return;
       }
       
@@ -122,13 +179,128 @@ export default {
       this.error = null;
       
       try {
-        // 检查electronAPI是否存在
-        if (!window.electronAPI || !window.electronAPI.getImagesInDirectory) {
-          throw new Error('electronAPI或getImagesInDirectory方法不可用');
-        }
+        let result;
         
-        // 从主进程获取图片
-        const result = await window.electronAPI.getImagesInDirectory(directoryPath);
+        // 检查electronAPI是否存在
+      if (!window.electronAPI) {
+        console.warn('electronAPI不可用，使用包含EXIF信息的模拟数据');
+        // 使用包含EXIF信息的模拟数据
+        result = {
+          images: [
+            {
+              name: '示例图片1.jpg',
+              path: '/path/to/example/image1.jpg',
+              size: 1024000,
+              width: 1920,
+              height: 1080,
+              date: '2023-05-20T10:30:00',
+              exif: {
+                DateTimeOriginal: '2023:05:20 10:30:00',
+                Model: 'Canon EOS R5',
+                FocalLength: '50mm',
+                FNumber: 'f/1.8',
+                ExifImageWidth: 1920,
+                ExifImageHeight: 1080
+              }
+            },
+            {
+              name: '示例图片2.jpg',
+              path: '/path/to/example/image2.jpg',
+              size: 2048000,
+              width: 3840,
+              height: 2160,
+              date: '2023-05-21T14:45:00',
+              exif: {
+                DateTimeOriginal: '2023:05:21 14:45:00',
+                Model: 'Nikon D850',
+                FocalLength: '24mm',
+                FNumber: 'f/2.8',
+                ExifImageWidth: 3840,
+                ExifImageHeight: 2160
+              }
+            }
+          ]
+        };
+      }
+        
+        // 根据showAllPhotos属性决定调用哪个方法
+        if (this.showAllPhotos) {
+          // 显示全部照片
+          if (window.electronAPI && window.electronAPI.getAllImages) {
+            result = await window.electronAPI.getAllImages();
+          } else {
+            console.warn('getAllImages方法不可用，使用模拟数据');
+            // 使用模拟数据
+            result = {
+              images: [
+                {
+                  name: '示例图片1.jpg',
+                  path: '/path/to/example/image1.jpg',
+                  size: 1024000,
+                  width: 1920,
+                  height: 1080,
+                  exif: {
+                    DateTimeOriginal: '2023:05:20 10:30:00',
+                    Model: 'Canon EOS R5',
+                    FocalLength: '50mm',
+                    FNumber: 'f/1.8'
+                  }
+                },
+                {
+                  name: '示例图片2.jpg',
+                  path: '/path/to/example/image2.jpg',
+                  size: 2048000,
+                  width: 3840,
+                  height: 2160,
+                  exif: {
+                    DateTimeOriginal: '2023:05:21 14:45:00',
+                    Model: 'Nikon D850',
+                    FocalLength: '24mm',
+                    FNumber: 'f/2.8'
+                  }
+                }
+              ]
+            };
+          }
+        } else {
+          // 显示特定目录的照片
+          if (window.electronAPI && window.electronAPI.getImagesInDirectory) {
+            result = await window.electronAPI.getImagesInDirectory(directoryPath);
+          } else {
+            console.warn('getImagesInDirectory方法不可用，使用模拟数据');
+            // 使用模拟数据
+            result = {
+              images: [
+                {
+                  name: '示例图片1.jpg',
+                  path: '/path/to/example/image1.jpg',
+                  size: 1024000,
+                  width: 1920,
+                  height: 1080,
+                  exif: {
+                    DateTimeOriginal: '2023:05:20 10:30:00',
+                    Model: 'Canon EOS R5',
+                    FocalLength: '50mm',
+                    FNumber: 'f/1.8'
+                  }
+                },
+                {
+                  name: '示例图片2.jpg',
+                  path: '/path/to/example/image2.jpg',
+                  size: 2048000,
+                  width: 3840,
+                  height: 2160,
+                  exif: {
+                    DateTimeOriginal: '2023:05:21 14:45:00',
+                    Model: 'Nikon D850',
+                    FocalLength: '24mm',
+                    FNumber: 'f/2.8'
+                  }
+                }
+              ]
+            };
+          }
+        }
         
         // 检查是否有错误
         if (result.error) {
@@ -138,8 +310,26 @@ export default {
         // 更新图片列表，并处理缩略图数据
         this.images = (result.images || []).map(image => ({
           ...image,
-          thumbnail: image.thumbnail ? image.thumbnail.toString('base64') : null
-        }));
+          thumbnail: image.thumbnail ? image.thumbnail.toString('base64') : null,
+          loaded: false
+        })).sort((a, b) => {
+          // 按拍摄日期倒序排列，如果没有拍摄日期则使用文件创建时间
+          const getDate = (image) => {
+            if (image.exif && image.exif.DateTimeOriginal) {
+              return new Date(image.exif.DateTimeOriginal);
+            } else if (image.created_at) {
+              return new Date(image.created_at);
+            } else {
+              return new Date(0);
+            }
+          };
+          
+          const dateA = getDate(a);
+          const dateB = getDate(b);
+          
+          // 降序排列（最近的在前）
+          return dateB - dateA;
+        });
         
         // 重置分页
         this.currentPage = 0;
@@ -154,10 +344,19 @@ export default {
       }
     },
     async selectImage(image) {
+      // 当图片被选中时，将其loaded状态设置为true
+      const index = this.displayedImages.findIndex(img => img.path === image.path);
+      if (index !== -1) {
+        // 使用Vue 3的响应式系统更新数组元素
+        this.displayedImages[index] = { ...this.displayedImages[index], loaded: true };
+        // 触发视图更新
+        this.displayedImages = [...this.displayedImages];
+      }
+
       // 获取EXIF信息
-      let exifData = null;
+      let exifData = image.exif || null;
       try {
-        if (window.electronAPI && window.electronAPI.getExifData) {
+        if (window.electronAPI && window.electronAPI.getExifData && !exifData) {
           const result = await window.electronAPI.getExifData(image.path);
           if (!result.error) {
             exifData = result.exif;
@@ -187,8 +386,19 @@ export default {
       const end = start + this.pageSize;
       const newImages = this.images.slice(start, end);
       
-      this.displayedImages = [...this.displayedImages, ...newImages];
+      // 为新图片添加loaded状态
+      const newImagesWithLoadedState = newImages.map(image => ({
+        ...image,
+        loaded: false
+      }));
+      
+      this.displayedImages = [...this.displayedImages, ...newImagesWithLoadedState];
       this.currentPage++;
+      
+      // 在下次DOM更新后重新观察图片
+      this.$nextTick(() => {
+        this.observeImages();
+      });
     },
     
     // 处理滚动事件，实现无限滚动加载
@@ -200,15 +410,83 @@ export default {
           this.loadMore();
         }
       }
+    },
+    
+    // 处理缩略图大小变化
+    handleThumbnailSizeChange() {
+      // 触发网格重新渲染
+      this.$forceUpdate();
+      
+      // 点击滑块后隐藏滑块面板
+      setTimeout(() => {
+        this.showThumbnailSlider = false;
+      }, 1000);
+    },
+    
+    // 初始化Intersection Observer
+    initIntersectionObserver() {
+      // 创建Intersection Observer实例
+      this.observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            // 当图片进入视口时，标记为已加载
+            const imgElement = entry.target;
+            const imageIndex = parseInt(imgElement.dataset.index);
+            
+            // 更新对应图片的loaded状态
+            if (this.displayedImages[imageIndex]) {
+              // 使用Vue 3的响应式系统更新数组元素
+              this.displayedImages[imageIndex] = { ...this.displayedImages[imageIndex], loaded: true };
+              // 触发视图更新
+              this.displayedImages = [...this.displayedImages];
+              
+              // 停止观察已加载的图片
+              this.observer.unobserve(imgElement);
+            }
+          }
+        });
+      }, {
+        // 设置阈值，当图片进入视口10%时触发
+        threshold: 0.1
+      });
+      
+      // 初始观察已存在的图片
+      this.observeImages();
+    },
+    
+    // 观察图片元素
+    observeImages() {
+      // 在下次DOM更新后执行
+      this.$nextTick(() => {
+        const photoElements = this.$refs.photoGrid.querySelectorAll('.photo-thumbnail');
+        photoElements.forEach((element, index) => {
+          // 确保每个元素都有正确的索引
+          element.dataset.index = index;
+          // 如果图片尚未加载，则观察它
+          if (!this.displayedImages[index] || !this.displayedImages[index].loaded) {
+            this.observer.observe(element);
+          }
+        });
+      });
     }
   },
   mounted() {
     this.updateInfoPanelWidth();
+    // 设置初始的缩略图大小CSS变量
+    if (this.$el) {
+      this.$el.style.setProperty('--thumbnail-min-width', `${this.thumbnailMinWidth}px`);
+    }
     // 监听滚动事件，实现无限滚动加载
     this.$refs.photoGrid.addEventListener('scroll', this.handleScroll);
+    
+    // 初始化Intersection Observer
+    this.initIntersectionObserver();
   },
   updated() {
     this.updateInfoPanelWidth();
+    
+    // 在组件更新后重新观察图片
+    this.observeImages();
   },
   beforeDestroy() {
     // 移除滚动事件监听
@@ -233,9 +511,18 @@ export default {
   width: calc(100% - 280px - var(--info-panel-width, 0px));
 }
 .photo-grid {
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(var(--thumbnail-min-width, 100px), 1fr));
 }
 .photo-thumbnail {
   aspect-ratio: 1/1;
 }
+
+  /* 垂直滑块样式 */
+  input[type="range"][orient="vertical"] {
+    writing-mode: bt-lr; /* IE */
+    -webkit-appearance: slider-vertical; /* WebKit */
+    width: 8px;
+    height: 100px;
+    padding: 0 5px;
+  }
 </style>

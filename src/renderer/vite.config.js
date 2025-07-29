@@ -23,5 +23,17 @@ export default defineConfig({
   server: {
     port: 5173, // Vite 开发服务器端口
     host: '127.0.0.1', // 指定host以避免IPv6权限问题
-  }
+    // 为Electron开发模式添加特殊处理
+    proxy: {
+      '/electron': {
+        target: 'http://localhost:5173',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/electron/, ''),
+      },
+    },
+  },
+  define: {
+    // 为Electron开发模式定义全局变量
+    __ELECTRON__: JSON.stringify(true),
+  },
 });

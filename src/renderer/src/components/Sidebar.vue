@@ -10,7 +10,7 @@
     </div>
     <div class="flex-1 overflow-y-auto py-4">
       <div class="px-4 space-y-1">
-        <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
+        <button @click="showAllPhotos" class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
           <div class="icon-wrapper">
             <i class="fas fa-images text-primary"></i>
           </div>
@@ -459,13 +459,19 @@ export default defineComponent({
       }
     };
     
+    // 显示全部照片
+    const showAllPhotos = () => {
+      emit('showAllPhotos')
+    }
+    
     return {
       directories,
       selectDirectory,
       showDirectoryContextMenu,
       toggleDirectoryExpansion,
       addLocalDirectory,
-      removeDirectory
+      removeDirectory,
+      showAllPhotos
     }
   }
 })

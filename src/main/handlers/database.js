@@ -61,8 +61,8 @@ const initDatabase = () => {
 
 // 插入或更新图片信息
 const upsertImage = (imageData, callback) => {
-  const sql = `INSERT OR REPLACE INTO images (name, path, size, thumbnail, width, height, exif, rating, tags, category) 
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  const sql = `INSERT OR REPLACE INTO images (name, path, size, thumbnail, width, height, exif, rating, tags, category, created_at) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
   const params = [
     imageData.name, 
     imageData.path, 
@@ -73,7 +73,8 @@ const upsertImage = (imageData, callback) => {
     JSON.stringify(imageData.exif),
     imageData.rating || 0,
     JSON.stringify(imageData.tags) || null,
-    imageData.category || null
+    imageData.category || null,
+    imageData.created_at || null
   ];
   
   db.run(sql, params, function(err) {
@@ -92,6 +93,39 @@ const getImagesByDirectory = (directoryPath, callback) => {
   const params = [normalizedPath + '\\%'];
   
   db.all(sql, params, (err, rows) => {
+    // 解析EXIF数据和标签数据
+    if (rows) {
+      rows = rows.map(row => {
+        if (row.exif) {
+          try {
+            row.exif = JSON.parse(row.exif);
+          } catch (e) {
+            console.warn('解析EXIF数据失败:', e);
+            row.exif = null;
+          }
+        }
+        if (row.tags) {
+          try {
+            row.tags = JSON.parse(row.tags);
+          } catch (e) {
+            console.warn('解析标签数据失败:', e);
+            row.tags = [];
+          }
+        } else {
+          row.tags = [];
+        }
+        return row;
+      });
+    }
+    callback(err, rows);
+  });
+};
+
+// 获取所有图片
+const getAllImages = (callback) => {
+  const sql = `SELECT id, name, path, size, width, height, exif, rating, tags, category, created_at FROM images ORDER BY created_at DESC`;
+  
+  db.all(sql, [], (err, rows) => {
     // 解析EXIF数据和标签数据
     if (rows) {
       rows = rows.map(row => {
@@ -149,6 +183,7 @@ module.exports = {
   initDatabase,
   upsertImage,
   getImagesByDirectory,
+  getAllImages,
   // getImageCountByDirectory,
   updateDirectoryScanTime,
   getDirectoryLastScanTime
