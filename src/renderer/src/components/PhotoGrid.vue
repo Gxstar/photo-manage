@@ -30,7 +30,7 @@
       </div>
     </div>
     <!-- 照片网格 -->
-    <div class="flex-1 overflow-y-auto p-6">
+    <div class="flex-1 overflow-y-auto p-6" ref="photoGrid">
       <div v-if="loading" class="text-center py-4">
         <p>正在加载图片...</p>
       </div>
@@ -39,7 +39,7 @@
       </div>
       <div v-else class="photo-grid grid gap-4">
         <div 
-          v-for="image in images" 
+          v-for="image in displayedImages" 
           :key="image.path" 
           class="photo-thumbnail bg-white rounded-button overflow-hidden border border-gray-200 hover:border-primary cursor-pointer relative group"
           @click="selectImage(image)"
@@ -64,6 +64,12 @@
           </div>
         </div>
       </div>
+      <!-- 加载更多按钮 -->
+      <div v-if="hasMoreImages && !loading" class="text-center py-4">
+        <button @click="loadMore" class="px-4 py-2 bg-primary text-white rounded-button hover:bg-primary-dark">
+          加载更多
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -84,8 +90,11 @@ export default {
   data() {
     return {
       images: [],
+      displayedImages: [],
       loading: false,
-      error: null
+      error: null,
+      currentPage: 0,
+      pageSize: 50  // 每页显示50张图片
     };
   },
   watch: {
@@ -101,8 +110,10 @@ export default {
       // 如果没有选择目录，清空图片列表
       if (!directoryPath) {
         this.images = [];
+        this.displayedImages = [];
         this.loading = false;
         this.error = null;
+        this.currentPage = 0;
         return;
       }
       
@@ -129,10 +140,15 @@ export default {
           ...image,
           thumbnail: image.thumbnail ? image.thumbnail.toString('base64') : null
         }));
+        
+        // 重置分页
+        this.currentPage = 0;
+        this.loadMore();
       } catch (err) {
         console.error('加载图片时出错:', err);
         this.error = err.message || '加载图片时出错';
         this.images = [];
+        this.displayedImages = [];
       } finally {
         this.loading = false;
       }
@@ -164,14 +180,51 @@ export default {
           contentElement.style.setProperty('--info-panel-width', '0px');
         }
       }
+    },
+    // 加载更多图片
+    loadMore() {
+      const start = this.currentPage * this.pageSize;
+      const end = start + this.pageSize;
+      const newImages = this.images.slice(start, end);
+      
+      this.displayedImages = [...this.displayedImages, ...newImages];
+      this.currentPage++;
+    },
+    
+    // 处理滚动事件，实现无限滚动加载
+    handleScroll(event) {
+      const { scrollTop, scrollHeight, clientHeight } = event.target;
+      // 当滚动到底部时自动加载更多
+      if (scrollTop + clientHeight >= scrollHeight - 10) {
+        if (!this.loading && this.hasMoreImages) {
+          this.loadMore();
+        }
+      }
     }
   },
   mounted() {
     this.updateInfoPanelWidth();
+    // 监听滚动事件，实现无限滚动加载
+    this.$refs.photoGrid.addEventListener('scroll', this.handleScroll);
   },
   updated() {
     this.updateInfoPanelWidth();
-  }
+  },
+  beforeDestroy() {
+    // 移除滚动事件监听
+    if (this.$refs.photoGrid) {
+      this.$refs.photoGrid.removeEventListener('scroll', this.handleScroll);
+    }
+  },
+  
+  // 计算属性
+  computed: {
+    hasMoreImages() {
+      return this.displayedImages.length < this.images.length;
+    }
+  },
+    
+
 }
 </script>
 

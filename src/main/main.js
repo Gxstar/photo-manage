@@ -32,7 +32,7 @@ function createWindow() {
 }
 
 const { ipcMain } = require('electron');
-const { handleSelectDirectory, handleGetSavedDirectories, handleGetImagesInDirectory, handleRemoveDirectory, handleGetImageCountInDirectory } = require('./handlers/directory');
+const { handleSelectDirectory, handleGetSavedDirectories, handleGetImagesInDirectory, handleRemoveDirectory } = require('./handlers/directory');
 const { initDatabase } = require('./handlers/database');
 
 app.whenReady().then(() => {
@@ -58,7 +58,7 @@ app.whenReady().then(() => {
   ipcMain.on('remove-directory', handleRemoveDirectory);
   
   // 处理获取目录图片数量请求
-  ipcMain.on('get-image-count-in-directory', handleGetImageCountInDirectory);
+  // 已移除此功能
 });
 
 app.on('window-all-closed', function () {

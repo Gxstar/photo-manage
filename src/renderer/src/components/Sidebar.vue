@@ -43,20 +43,18 @@
           <div v-if="Object.keys(directories).length > 0">
             <div v-for="(dir, dirPath) in directories" :key="dirPath">
               <div
-                @click="selectDirectory(dir.path)"
                 @contextmenu.prevent="showDirectoryContextMenu($event, dir.path)"
                 :class="[
                   'w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 transition-colors group cursor-pointer',
                   { 'bg-primary/10': selectedDirectory === dir.path }
                 ]"
               >
-                <div class="flex items-center">
+                <div class="flex items-center flex-grow" @click="selectDirectory(dir.path)">
                   <button
                     @click.stop="toggleDirectoryExpansion(dir)"
                     class="mr-2 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600"
                   >
                     <i 
-                      v-if="dir.subdirectories && dir.subdirectories.length > 0" 
                       class="fas fa-chevron-down w-4 h-4 transition-transform" 
                       :class="{ 'transform rotate-180': dir.expanded }" 
                     ></i>
@@ -64,7 +62,6 @@
                   <i class="fas fa-folder w-4 h-4 mr-2 text-primary"></i>
                   <span class="text-sm">{{ dir.name }}</span>
                 </div>
-                <span class="ml-auto text-xs text-gray-400">{{ dir.imageCount || 0 }}</span>
                 <button 
                   @click.stop="removeDirectory(dir.path)"
                   class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600"
@@ -202,7 +199,10 @@ const RecursiveSubDirectory = defineComponent({
             { 'bg-primary/10': this.selectedDirectory === dir.path }
           ]
         }, [
-          h('div', { class: 'flex items-center' }, [
+          h('div', { 
+            class: 'flex items-center flex-grow',
+            onClick: () => this.selectDirectory(dir.path)
+          }, [
             h('button', {
               onClick: (event) => {
                 event.stopPropagation();
@@ -210,19 +210,16 @@ const RecursiveSubDirectory = defineComponent({
               },
               class: 'mr-2 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600'
             }, [
-              dir.subdirectories && dir.subdirectories.length > 0 ?
-                h('i', {
-                  class: [
-                    'fas fa-chevron-down w-4 h-4 transition-transform',
-                    { 'transform rotate-180': dir.expanded }
-                  ]
-                }) :
-                null
+              h('i', {
+                class: [
+                  'fas fa-chevron-down w-4 h-4 transition-transform',
+                  { 'transform rotate-180': dir.expanded }
+                ]
+              })
             ]),
             h('i', { class: 'fas fa-folder w-4 h-4 mr-2 text-primary' }),
             h('span', { class: 'text-sm' }, dir.name)
           ]),
-          h('span', { class: 'ml-auto text-xs text-gray-400' }, (dir.imageCount || 0).toString()),
           h('button', {
             onClick: (event) => {
               event.stopPropagation();
@@ -343,29 +340,12 @@ export default defineComponent({
         name: dirStructure.name,
         path: dirStructure.path,
         expanded: false,
-        imageCount: 0, // 默认图片数量为0
         subdirectories: dirStructure.subdirectories ? dirStructure.subdirectories.map(convertDirectoryStructure).filter(Boolean) : []
       };
     };
     
     // 获取目录中的图片数量
-    const getDirectoryImageCount = async (directoryPath) => {
-      if (!window.electronAPI || !window.electronAPI.getImageCountInDirectory) {
-        console.warn('getImageCountInDirectory method is not available');
-        return 0;
-      }
-      
-      try {
-        const result = await window.electronAPI.getImageCountInDirectory(directoryPath);
-        if (result && result.count !== undefined) {
-          return result.count;
-        }
-        return 0;
-      } catch (error) {
-        console.error(`Failed to get image count for directory ${directoryPath}:`, error);
-        return 0;
-      }
-    };
+    // 已移除此功能
     
     // 从后端加载目录结构
     const loadDirectories = async () => {
@@ -428,10 +408,7 @@ export default defineComponent({
           });
           
           // 获取每个目录的图片数量
-          for (const path in newDirectories) {
-            const count = await getDirectoryImageCount(path);
-            newDirectories[path].imageCount = count;
-          }
+          // 已移除此功能
           
           console.log('最终目录数据:', newDirectories);
           directories.value = newDirectories;

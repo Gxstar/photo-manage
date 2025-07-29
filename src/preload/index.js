@@ -53,12 +53,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
     });
   },
   // 获取目录图片数量
-  getImageCountInDirectory: (directoryPath) => {
-    return new Promise((resolve) => {
-      ipcRenderer.send('get-image-count-in-directory', directoryPath);
-      ipcRenderer.once('image-count-in-directory', (event, data) => {
-        resolve(data);
-      });
-    });
-  }
+  // 已移除此功能
 });

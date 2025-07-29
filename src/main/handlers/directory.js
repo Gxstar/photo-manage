@@ -186,22 +186,7 @@ ipcMain.handle('update-image-info', async (event, imageData) => {
 });
 
 // 监听获取目录图片数量的请求
-const handleGetImageCountInDirectory = (event, dirPath) => {
-  try {
-    // 从数据库获取目录中的图片数量
-    getImageCountByDirectory(dirPath, (err, count) => {
-      if (err) {
-        console.error('从数据库获取图片数量失败:', err);
-        event.reply('image-count-in-directory', { error: '获取图片数量时出错' });
-      } else {
-        event.reply('image-count-in-directory', { count });
-      }
-    });
-  } catch (err) {
-    console.error(`无法获取目录图片数量: ${dirPath}`, err);
-    event.reply('image-count-in-directory', { error: '获取图片数量时出错' });
-  }
-};
+// 已移除此功能
 
 // 递归获取目录中的所有图片文件
 const getAllImageFiles = (dirPath, imageFiles = []) => {
@@ -256,7 +241,7 @@ const loadImagesFromFileSystem = (event, dirPath) => {
 };
 
 // 从文件系统加载图片信息并缓存到数据库
-const loadImagesFromFileSystemAndCache = (event, dirPath) => {
+const loadImagesFromFileSystemAndCache = async (event, dirPath) => {
   try {
     // 递归获取所有图片文件
     const imageFiles = getAllImageFiles(dirPath, []);
@@ -264,50 +249,54 @@ const loadImagesFromFileSystemAndCache = (event, dirPath) => {
     // 记录需要保存到数据库的图片
     const imagesToCache = [...imageFiles];
     
-    // 将图片信息保存到数据库
-    imagesToCache.forEach(imageData => {
-      // 读取EXIF信息
-      let exifData = null;
-      try {
-        const buffer = fs.readFileSync(imageData.path);
-        const parser = EXIF.create(buffer);
-        const result = parser.parse();
-        exifData = result.tags || null;
-      } catch (exifErr) {
-        console.warn(`读取EXIF信息失败: ${imageData.path}`, exifErr);
-      }
-      
-      // 生成缩略图
-      generateThumbnail(imageData.path, (err, thumbnailData, width, height) => {
-        if (err) {
-          console.error('生成缩略图失败:', err);
-          // 即使缩略图生成失败，也保存基本信息和EXIF信息
-          upsertImage({...imageData, thumbnail: null, width: null, height: null, exif: exifData}, (err) => {
-            if (err) {
-              console.error('保存图片信息到数据库失败:', err);
-            }
-          });
-        } else {
-          // 保存包含缩略图、EXIF信息和新字段的完整信息
-          upsertImage({
-            ...imageData, 
-            thumbnail: thumbnailData, 
-            width, 
-            height, 
-            exif: exifData,
-            rating: 0,
-            tags: [],
-            category: null
-          }, (err) => {
-            if (err) {
-              console.error('保存图片信息到数据库失败:', err);
-            }
-          });
+    // 异步处理图片信息保存到数据库，避免阻塞主进程
+    Promise.all(imagesToCache.map(imageData => 
+      new Promise((resolve) => {
+        // 读取EXIF信息
+        let exifData = null;
+        try {
+          const buffer = fs.readFileSync(imageData.path);
+          const parser = EXIF.create(buffer);
+          const result = parser.parse();
+          exifData = result.tags || null;
+        } catch (exifErr) {
+          console.warn(`读取EXIF信息失败: ${imageData.path}`, exifErr);
         }
-      });
+        
+        // 生成缩略图
+        generateThumbnail(imageData.path, (err, thumbnailData, width, height) => {
+          if (err) {
+            console.error('生成缩略图失败:', err);
+            // 即使缩略图生成失败，也保存基本信息和EXIF信息
+            upsertImage({...imageData, thumbnail: null, width: null, height: null, exif: exifData}, (err) => {
+              if (err) {
+                console.error('保存图片信息到数据库失败:', err);
+              }
+              resolve();
+            });
+          } else {
+            // 保存包含缩略图、EXIF信息和新字段的完整信息
+            upsertImage({
+              ...imageData, 
+              thumbnail: thumbnailData, 
+              width, 
+              height, 
+              exif: exifData,
+              rating: 0,
+              tags: [],
+              category: null
+            }, (err) => {
+              if (err) {
+                console.error('保存图片信息到数据库失败:', err);
+              }
+              resolve();
+            });
+          }
+        });
+      })
+    )).then(() => {
+      event.reply('images-in-directory', { images: imageFiles });
     });
-    
-    event.reply('images-in-directory', { images: imageFiles });
   } catch (err) {
     console.error(`无法读取目录: ${dirPath}`, err);
     event.reply('images-in-directory', { error: '读取目录时出错' });
@@ -333,7 +322,7 @@ module.exports = {
   handleGetSavedDirectories,
   handleGetImagesInDirectory,
   handleRemoveDirectory,
-  handleGetImageCountInDirectory,
+  // handleGetImageCountInDirectory,
   getDirectoryStructure,
   generateThumbnail
 };

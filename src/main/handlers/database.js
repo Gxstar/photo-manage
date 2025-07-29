@@ -84,10 +84,12 @@ const upsertImage = (imageData, callback) => {
 // 获取目录中的所有图片
 const getImagesByDirectory = (directoryPath, callback) => {
   // 使用LIKE操作符匹配目录下的所有图片
+  // 确保路径分隔符一致，数据库中存储的是反斜杠格式
+  const normalizedPath = directoryPath.replace(/\//g, '\\');
   const sql = `SELECT id, name, path, size, width, height, exif, rating, tags, category FROM images 
                WHERE path LIKE ? 
                ORDER BY name`;
-  const params = [directoryPath.replace(/\\/g, '/') + '/%'];
+  const params = [normalizedPath + '\\%'];
   
   db.all(sql, params, (err, rows) => {
     // 解析EXIF数据和标签数据
@@ -119,16 +121,7 @@ const getImagesByDirectory = (directoryPath, callback) => {
 };
 
 // 获取目录中的图片数量
-const getImageCountByDirectory = (directoryPath, callback) => {
-  // 使用LIKE操作符匹配目录下的所有图片
-  const sql = `SELECT COUNT(*) as count FROM images 
-               WHERE path LIKE ?`;
-  const params = [directoryPath.replace(/\\/g, '/') + '/%'];
-  
-  db.get(sql, params, (err, row) => {
-    callback(err, row ? row.count : 0);
-  });
-};
+// 已移除此功能
 
 // 更新目录扫描时间
 const updateDirectoryScanTime = (directoryPath, callback) => {
@@ -156,7 +149,7 @@ module.exports = {
   initDatabase,
   upsertImage,
   getImagesByDirectory,
-  getImageCountByDirectory,
+  // getImageCountByDirectory,
   updateDirectoryScanTime,
   getDirectoryLastScanTime
 };
