@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
 const EXIF = require('exif-parser');
-const { getImagesByDirectory, upsertImage, getDirectoryLastScanTime, updateDirectoryScanTime } = require('./database');
+const { getImagesByDirectory, upsertImage, getDirectoryLastScanTime, updateDirectoryScanTime, getImageCountByDirectory } = require('./database');
 
 // 创建存储实例
 const store = new Store({
@@ -30,6 +30,9 @@ const handleSelectDirectory = (event) => {
       if (!directories.includes(selectedPath)) {
         directories.push(selectedPath);
         store.set('directories', directories);
+        
+        // 触发图片扫描，将图片信息保存到数据库
+        loadImagesFromFileSystemAndCache(event, selectedPath);
       }
       event.reply('directory-selected', selectedPath);
     } else {
@@ -83,6 +86,22 @@ const handleGetSavedDirectories = (event) => {
   const directories = store.get('directories', []);
   const directoryStructures = directories.map(dirPath => getDirectoryStructure(dirPath)).filter(Boolean);
   event.reply('saved-directories', directoryStructures);
+};
+
+// 移除保存的目录
+const handleRemoveDirectory = (event, directoryPath) => {
+  try {
+    let directories = store.get('directories', []);
+    directories = directories.filter(dir => dir !== directoryPath);
+    store.set('directories', directories);
+    
+    // 重新加载目录结构
+    const directoryStructures = directories.map(dirPath => getDirectoryStructure(dirPath)).filter(Boolean);
+    event.reply('saved-directories', directoryStructures);
+  } catch (err) {
+    console.error('移除目录失败:', err);
+    event.reply('directory-removed', { success: false, error: '移除目录失败' });
+  }
 };
 
 // 获取目录中的图片文件
@@ -165,6 +184,24 @@ ipcMain.handle('update-image-info', async (event, imageData) => {
     return { success: false, error: '处理请求时出错' };
   }
 });
+
+// 监听获取目录图片数量的请求
+const handleGetImageCountInDirectory = (event, dirPath) => {
+  try {
+    // 从数据库获取目录中的图片数量
+    getImageCountByDirectory(dirPath, (err, count) => {
+      if (err) {
+        console.error('从数据库获取图片数量失败:', err);
+        event.reply('image-count-in-directory', { error: '获取图片数量时出错' });
+      } else {
+        event.reply('image-count-in-directory', { count });
+      }
+    });
+  } catch (err) {
+    console.error(`无法获取目录图片数量: ${dirPath}`, err);
+    event.reply('image-count-in-directory', { error: '获取图片数量时出错' });
+  }
+};
 
 // 递归获取目录中的所有图片文件
 const getAllImageFiles = (dirPath, imageFiles = []) => {
@@ -295,6 +332,8 @@ module.exports = {
   handleSelectDirectory,
   handleGetSavedDirectories,
   handleGetImagesInDirectory,
+  handleRemoveDirectory,
+  handleGetImageCountInDirectory,
   getDirectoryStructure,
   generateThumbnail
 };

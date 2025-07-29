@@ -12,19 +12,19 @@
       <div class="px-4 space-y-1">
         <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
           <div class="icon-wrapper">
-            <i class="fas fa-images text-gray-500"></i>
+            <i class="fas fa-images text-primary"></i>
           </div>
           <span>全部照片</span>
         </button>
         <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
           <div class="icon-wrapper">
-            <i class="fas fa-clock text-gray-500"></i>
+            <i class="fas fa-clock text-primary"></i>
           </div>
           <span>最近导入</span>
         </button>
         <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
           <div class="icon-wrapper">
-            <i class="fas fa-star text-gray-500"></i>
+            <i class="fas fa-star text-primary"></i>
           </div>
           <span>收藏夹</span>
         </button>
@@ -34,35 +34,44 @@
         <div class="mb-6">
           <div class="flex items-center justify-between mb-3">
             <h2 class="text-sm font-semibold text-gray-700">本地目录</h2>
-            <button @click="addLocalDirectory" class="text-gray-500 hover:text-gray-700">
-              <PlusIcon class="w-4 h-4" />
+            <button @click="addLocalDirectory" class="text-primary hover:text-gray-700">
+              <i class="fas fa-plus w-4 h-4"></i>
             </button>
           </div>
           
           <!-- 显示目录列表 -->
           <div v-if="Object.keys(directories).length > 0">
             <div v-for="(dir, dirPath) in directories" :key="dirPath">
-              <button
+              <div
                 @click="selectDirectory(dir.path)"
-                @contextmenu="showDirectoryContextMenu($event, dir.path)"
-                class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 transition-colors group"
-                :class="{ 'bg-blue-50': selectedDirectory === dir.path }"
+                @contextmenu.prevent="showDirectoryContextMenu($event, dir.path)"
+                :class="[
+                  'w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 transition-colors group cursor-pointer',
+                  { 'bg-primary/10': selectedDirectory === dir.path }
+                ]"
               >
                 <div class="flex items-center">
-                  <FolderIcon class="w-4 h-4 mr-2 text-blue-500" />
+                  <button
+                    @click.stop="toggleDirectoryExpansion(dir)"
+                    class="mr-2 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600"
+                  >
+                    <i 
+                      v-if="dir.subdirectories && dir.subdirectories.length > 0" 
+                      class="fas fa-chevron-down w-4 h-4 transition-transform" 
+                      :class="{ 'transform rotate-180': dir.expanded }" 
+                    ></i>
+                  </button>
+                  <i class="fas fa-folder w-4 h-4 mr-2 text-primary"></i>
                   <span class="text-sm">{{ dir.name }}</span>
                 </div>
+                <span class="ml-auto text-xs text-gray-400">{{ dir.imageCount || 0 }}</span>
                 <button 
-                  @click.stop="toggleDirectoryExpansion(dir)"
-                  class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600"
-                  v-if="dir.subdirectories && dir.subdirectories.length > 0"
+                  @click.stop="removeDirectory(dir.path)"
+                  class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600"
                 >
-                  <ChevronDownIcon 
-                    class="w-4 h-4 transition-transform" 
-                    :class="{ 'transform rotate-180': dir.expanded }" 
-                  />
+                  <i class="fas fa-times h-4 w-4"></i>
                 </button>
-              </button>
+              </div>
               
               <!-- 展开的子目录 (递归显示) -->
               <div v-show="dir.expanded">
@@ -79,7 +88,7 @@
           </div>
           
           <!-- 如果没有目录，显示提示信息 -->
-          <div v-else class="text-center py-4 text-gray-500 text-sm">
+          <div v-else class="text-center py-4 text-primary text-sm">
             <p>暂无目录</p>
             <p class="mt-1">点击上方 + 按钮添加目录</p>
           </div>
@@ -87,21 +96,21 @@
         <div class="space-y-1">
           <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
             <div class="icon-wrapper">
-              <i class="fas fa-mountain text-gray-500"></i>
+              <i class="fas fa-mountain text-primary"></i>
             </div>
             <span>旅行记忆</span>
             <span class="ml-auto text-xs text-gray-400">128</span>
           </button>
           <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
             <div class="icon-wrapper">
-              <i class="fas fa-utensils text-gray-500"></i>
+              <i class="fas fa-utensils text-primary"></i>
             </div>
             <span>美食日记</span>
             <span class="ml-auto text-xs text-gray-400">56</span>
           </button>
           <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
             <div class="icon-wrapper">
-              <i class="fas fa-birthday-cake text-gray-500"></i>
+              <i class="fas fa-birthday-cake text-primary"></i>
             </div>
             <span>生日派对</span>
             <span class="ml-auto text-xs text-gray-400">42</span>
@@ -110,24 +119,24 @@
       </div>
       <div class="px-4 mt-6">
         <div class="flex items-center justify-between mb-2">
-          <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">智能分类</h3>
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">智能分类</h3>
         </div>
         <div class="space-y-1">
           <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
             <div class="icon-wrapper">
-              <i class="fas fa-user text-gray-500"></i>
+              <i class="fas fa-user text-primary"></i>
             </div>
             <span>人物</span>
           </button>
           <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
             <div class="icon-wrapper">
-              <i class="fas fa-map-marker-alt text-gray-500"></i>
+              <i class="fas fa-map-marker-alt text-primary"></i>
             </div>
             <span>地点</span>
           </button>
           <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
             <div class="icon-wrapper">
-              <i class="fas fa-calendar-alt text-gray-500"></i>
+              <i class="fas fa-calendar-alt text-primary"></i>
             </div>
             <span>时间线</span>
           </button>
@@ -137,6 +146,7 @@
     <div class="p-4 border-t border-gray-200">
       <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-button hover:bg-gray-100 text-left">
         <div class="icon-wrapper">
+          <i class="fas fa-cog text-gray-500"></i>
         </div>
         <span>设置</span>
       </button>
@@ -146,8 +156,6 @@
 
 <script>
 import { ref, onMounted, defineProps, defineEmits, defineComponent, h } from 'vue'
-import { FolderIcon, ChevronDownIcon, PlusIcon, PhotoIcon, SparklesIcon, CogIcon } from '@heroicons/vue/24/outline'
-
 // 定义递归组件
 const RecursiveSubDirectory = defineComponent({
   name: 'RecursiveSubDirectory',
@@ -161,16 +169,21 @@ const RecursiveSubDirectory = defineComponent({
       default: ''
     }
   },
-  emits: ['select-directory', 'show-context-menu'],
+  emits: ['select-directory', 'show-context-menu', 'remove-directory'],
   setup(props, { emit }) {
     const toggleDirectoryExpansion = (dir) => {
       dir.expanded = !dir.expanded;
     };
     
+    const removeDirectory = (path) => {
+      emit('remove-directory', path);
+    };
+    
     return {
       toggleDirectoryExpansion,
       selectDirectory: (path) => emit('select-directory', path),
-      showContextMenu: (event, path) => emit('show-context-menu', { event, path, type: 'directory' })
+      showContextMenu: (event, path) => emit('show-context-menu', { event, path, type: 'directory' }),
+      removeDirectory
     };
   },
   render() {
@@ -180,35 +193,63 @@ const RecursiveSubDirectory = defineComponent({
     
     return h('div', { class: 'recursive-subdirectory' }, [
       this.directories.map(dir => [
-        h('button', {
+        h('div', {
           key: dir.path,
           onClick: () => this.selectDirectory(dir.path),
           onContextmenu: (event) => this.showContextMenu(event, dir.path),
           class: [
-            'w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 transition-colors group',
-            { 'bg-blue-50': this.selectedDirectory === dir.path }
+            'w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 transition-colors group cursor-pointer',
+            { 'bg-primary/10': this.selectedDirectory === dir.path }
           ]
         }, [
           h('div', { class: 'flex items-center' }, [
-            h(FolderIcon, { class: 'w-4 h-4 mr-2 text-blue-500' }),
-            h('span', { class: 'text-sm' }, dir.name)
-          ]),
-          dir.subdirectories && dir.subdirectories.length > 0 ?
             h('button', {
               onClick: (event) => {
                 event.stopPropagation();
                 this.toggleDirectoryExpansion(dir);
               },
-              class: 'opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600'
+              class: 'mr-2 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600'
             }, [
-              h(ChevronDownIcon, {
-                class: [
-                  'w-4 h-4 transition-transform',
-                  { 'transform rotate-180': dir.expanded }
-                ]
+              dir.subdirectories && dir.subdirectories.length > 0 ?
+                h('i', {
+                  class: [
+                    'fas fa-chevron-down w-4 h-4 transition-transform',
+                    { 'transform rotate-180': dir.expanded }
+                  ]
+                }) :
+                null
+            ]),
+            h('i', { class: 'fas fa-folder w-4 h-4 mr-2 text-primary' }),
+            h('span', { class: 'text-sm' }, dir.name)
+          ]),
+          h('span', { class: 'ml-auto text-xs text-gray-400' }, (dir.imageCount || 0).toString()),
+          h('button', {
+            onClick: (event) => {
+              event.stopPropagation();
+              // 触发移除目录事件
+              this.showContextMenu(event, dir.path);
+              // 显示确认对话框并移除目录
+              if (confirm('确定要移除这个目录吗？')) {
+                this.$emit('remove-directory', dir.path);
+              }
+            },
+            class: 'opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600'
+          }, [
+            h('svg', {
+              xmlns: 'http://www.w3.org/2000/svg',
+              class: 'h-4 w-4',
+              fill: 'none',
+              viewBox: '0 0 24 24',
+              stroke: 'currentColor'
+            }, [
+              h('path', {
+                'stroke-linecap': 'round',
+                'stroke-linejoin': 'round',
+                'stroke-width': '2',
+                d: 'M6 18L18 6M6 6l12 12'
               })
-            ]) :
-            null
+            ])
+          ])
         ]),
         dir.expanded && dir.subdirectories && dir.subdirectories.length > 0 ?
           h('div', { 
@@ -219,7 +260,8 @@ const RecursiveSubDirectory = defineComponent({
               directories: dir.subdirectories,
               selectedDirectory: this.selectedDirectory,
               'onSelect-directory': this.selectDirectory,
-              'onShow-context-menu': this.showContextMenu
+              'onShow-context-menu': this.showContextMenu,
+              'onRemove-directory': (path) => this.removeDirectory(path)
             })
           ]) :
           null
@@ -231,10 +273,7 @@ const RecursiveSubDirectory = defineComponent({
 export default defineComponent({
   name: 'Sidebar',
   components: {
-    RecursiveSubDirectory,
-    FolderIcon,
-    ChevronDownIcon,
-    PlusIcon
+    RecursiveSubDirectory
   },
   props: {
     selectedDirectory: {
@@ -304,8 +343,28 @@ export default defineComponent({
         name: dirStructure.name,
         path: dirStructure.path,
         expanded: false,
+        imageCount: 0, // 默认图片数量为0
         subdirectories: dirStructure.subdirectories ? dirStructure.subdirectories.map(convertDirectoryStructure).filter(Boolean) : []
       };
+    };
+    
+    // 获取目录中的图片数量
+    const getDirectoryImageCount = async (directoryPath) => {
+      if (!window.electronAPI || !window.electronAPI.getImageCountInDirectory) {
+        console.warn('getImageCountInDirectory method is not available');
+        return 0;
+      }
+      
+      try {
+        const result = await window.electronAPI.getImageCountInDirectory(directoryPath);
+        if (result && result.count !== undefined) {
+          return result.count;
+        }
+        return 0;
+      } catch (error) {
+        console.error(`Failed to get image count for directory ${directoryPath}:`, error);
+        return 0;
+      }
     };
     
     // 从后端加载目录结构
@@ -367,6 +426,13 @@ export default defineComponent({
           convertedDirs.forEach(dir => {
             newDirectories[dir.path] = dir;
           });
+          
+          // 获取每个目录的图片数量
+          for (const path in newDirectories) {
+            const count = await getDirectoryImageCount(path);
+            newDirectories[path].imageCount = count;
+          }
+          
           console.log('最终目录数据:', newDirectories);
           directories.value = newDirectories;
         } else {
@@ -386,12 +452,43 @@ export default defineComponent({
       await loadDirectories();
     })
     
+    // 移除目录
+    const removeDirectory = async (directoryPath) => {
+      // 显示确认对话框
+      if (!confirm('确定要移除这个目录吗？')) {
+        return;
+      }
+      
+      const isElectron = !!window.electronAPI;
+      
+      if (!isElectron) {
+        // 在开发环境中模拟移除目录
+        const dirName = directoryPath.split('\\').pop();
+        console.log(`在开发环境中模拟移除目录: ${dirName}`);
+        return;
+      }
+      
+      // 在Electron环境中移除实际目录
+      if (window.electronAPI && window.electronAPI.removeDirectory) {
+        try {
+          await window.electronAPI.removeDirectory(directoryPath);
+          // 重新加载目录
+          loadDirectories();
+        } catch (error) {
+          console.error('Failed to remove directory:', error);
+        }
+      } else {
+        console.error('electronAPI or removeDirectory method is not available');
+      }
+    };
+    
     return {
       directories,
       selectDirectory,
       showDirectoryContextMenu,
       toggleDirectoryExpansion,
-      addLocalDirectory
+      addLocalDirectory,
+      removeDirectory
     }
   }
 })

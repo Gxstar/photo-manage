@@ -32,7 +32,7 @@ function createWindow() {
 }
 
 const { ipcMain } = require('electron');
-const { handleSelectDirectory, handleGetSavedDirectories, handleGetImagesInDirectory } = require('./handlers/directory');
+const { handleSelectDirectory, handleGetSavedDirectories, handleGetImagesInDirectory, handleRemoveDirectory, handleGetImageCountInDirectory } = require('./handlers/directory');
 const { initDatabase } = require('./handlers/database');
 
 app.whenReady().then(() => {
@@ -53,6 +53,12 @@ app.whenReady().then(() => {
   
   // 处理获取目录中图片的请求
   ipcMain.on('get-images-in-directory', handleGetImagesInDirectory);
+  
+  // 处理移除目录请求
+  ipcMain.on('remove-directory', handleRemoveDirectory);
+  
+  // 处理获取目录图片数量请求
+  ipcMain.on('get-image-count-in-directory', handleGetImageCountInDirectory);
 });
 
 app.on('window-all-closed', function () {

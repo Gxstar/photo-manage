@@ -42,5 +42,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
         resolve(data);
       });
     });
+  },
+  // 移除目录
+  removeDirectory: (directoryPath) => {
+    return new Promise((resolve) => {
+      ipcRenderer.send('remove-directory', directoryPath);
+      ipcRenderer.once('saved-directories', (event, directories) => {
+        resolve(directories);
+      });
+    });
+  },
+  // 获取目录图片数量
+  getImageCountInDirectory: (directoryPath) => {
+    return new Promise((resolve) => {
+      ipcRenderer.send('get-image-count-in-directory', directoryPath);
+      ipcRenderer.once('image-count-in-directory', (event, data) => {
+        resolve(data);
+      });
+    });
   }
 });

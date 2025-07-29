@@ -63,7 +63,7 @@
       </div>
       <div v-if="image.category">
         <h3 class="font-medium mb-3">分类</h3>
-        <div class="px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-sm inline-block">
+        <div class="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm inline-block">
           {{ image.category }}
         </div>
       </div>

@@ -118,6 +118,18 @@ const getImagesByDirectory = (directoryPath, callback) => {
   });
 };
 
+// 获取目录中的图片数量
+const getImageCountByDirectory = (directoryPath, callback) => {
+  // 使用LIKE操作符匹配目录下的所有图片
+  const sql = `SELECT COUNT(*) as count FROM images 
+               WHERE path LIKE ?`;
+  const params = [directoryPath.replace(/\\/g, '/') + '/%'];
+  
+  db.get(sql, params, (err, row) => {
+    callback(err, row ? row.count : 0);
+  });
+};
+
 // 更新目录扫描时间
 const updateDirectoryScanTime = (directoryPath, callback) => {
   const sql = `INSERT OR REPLACE INTO directories (path, last_scanned) 
@@ -144,6 +156,7 @@ module.exports = {
   initDatabase,
   upsertImage,
   getImagesByDirectory,
+  getImageCountByDirectory,
   updateDirectoryScanTime,
   getDirectoryLastScanTime
 };
